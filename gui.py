@@ -48,12 +48,19 @@ header_bttn_terms.grid(row=0, column=0, padx=(0, 5))
 header_bttn_dev = ttk.Button(header_bttn, text="About")
 header_bttn_dev.grid(row=0, column=1)
 
+def append_log(message):
+    error_output_text.config(state="normal")
+    error_output_text.insert(tk.END, message + "\n")
+    error_output_text.see(tk.END)
+    error_output_text.config(state="disabled")
+
 def process_submit():
     user_text = user_input_text.get("1.0", "end-1c")
-    if (len(user_text) == 0):
+    if (len(user_text.strip()) == 0):
         print("User no input!")
         return
-    clear_input_call(user_text)
+    error_output_text.delete(1.0, tk.END)
+    output_arr = process_input_call(user_text, append_log)
 
 # User Input Frame
 user_input_frame = ttk.LabelFrame(main, text="User Input", padding=10)
@@ -107,10 +114,10 @@ progress_label.grid(row=1, column=0, columnspan=2, sticky="w", pady=(5, 0))
 button_frame = ttk.Frame(main)
 button_frame.grid(row=4, column=0, columnspan=2, sticky="e", pady=(5, 0))
 
-clear_btn = ttk.Button(button_frame, text="Clear", command=process_submit)
+clear_btn = ttk.Button(button_frame, text="Clear", command=clear_input_call)
 clear_btn.grid(row=0, column=0, padx=(0, 10))
 
-submit_btn = ttk.Button(button_frame, text="Submit", command=process_input_call)
+submit_btn = ttk.Button(button_frame, text="Submit", command=process_submit)
 submit_btn.grid(row=0, column=1)
 
 root.mainloop()
