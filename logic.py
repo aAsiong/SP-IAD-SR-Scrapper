@@ -1,7 +1,7 @@
 from html.parser import HTMLParser
 
 class MyHTMLParser(HTMLParser):
-    def __init__(self):
+    def __init__(self, log_callback):
         super().__init__()
         self.in_table = False
         self.row_count = 0
@@ -9,7 +9,7 @@ class MyHTMLParser(HTMLParser):
         self.in_cell = False
         self.current_row_data = []
         self.all_extracted_data = []
-        self.current_tag = ""
+        self.log = log_callback
 
     def extract_notes_id_from_url(self, url):
         return url.split('/')[5]
@@ -26,7 +26,10 @@ class MyHTMLParser(HTMLParser):
         elif (get_tag == "TR" and self.in_table == True):
             self.in_row = True
             self.row_count += 1
+            
             print(f"Row {self.row_count}: processing begin")
+            self.log(f"Row {self.row_count}: processing begin")
+
             self.current_row_data = []
             
         elif (get_tag == "TD" and self.in_row == True):
@@ -68,8 +71,8 @@ class MyHTMLParser(HTMLParser):
         elif (get_tag == "TD" and self.in_cell == True):
             self.in_cell = False
             
-def process_input_call(data):
-    parser = MyHTMLParser()
+def process_input_call(data, log_callback):
+    parser = MyHTMLParser(log_callback)
     parser.feed(data)
     return parser.all_extracted_data
     
