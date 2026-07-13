@@ -76,6 +76,10 @@ class MyHTMLParser(HTMLParser):
 
         elif (get_tag == "TD" and self.in_cell == True):
             self.in_cell = False
+
+def pandas_dt_frame(data):
+    df = pd.DataFrame(data)
+    df.to_excel('output.xlsx', index=False)
             
 def process_input_call(data, log_callback):
     parser = MyHTMLParser(log_callback)
