@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
 import logic
+import queue
 
 class NotesScraper:
     def __init__(self, root):
@@ -10,6 +11,9 @@ class NotesScraper:
         self.root.geometry("550x550")
         self.root.resizable(0, 0)
         self.user_text = ""
+
+        # Create Queue
+        self.log_queue = queue.Queue()
 
         # Create GUI
         self.create_interface()
@@ -101,6 +105,8 @@ class NotesScraper:
 
         self.submit_btn = ttk.Button(button_frame, text="Submit", command=self.process_submit)
         self.submit_btn.grid(row=0, column=1)
+        
+        self.root.after(100, self.check_queue)
 
     def append_log(self, stat, message):
         if (stat == '1'):
@@ -110,6 +116,28 @@ class NotesScraper:
             self.progess_output_text.tag_config("err_text", foreground="red")
             self.progess_output_text.insert(tk.END, message + "\n", "err_text")
         self.progess_output_text.see(tk.END)
+
+    def check_queue(self):
+        try:
+            while not self.log_queue.empty():
+                stat, msg = self.log_queue.get()
+                self.progess_output_text.config(state="normal")
+                if (stat == "INFO"):
+                    self.progess_output_text.tag_config("info_text", foreground="gray")
+                    self.progess_output_text.insert(tk.END, msg + "\n", "info_text")
+                elif (stat == "SUCCESS"):
+                    self.progess_output_text.tag_config("scs_text", foreground="green")
+                    self.progess_output_text.insert(tk.END, msg + "\n", "scs_text")
+                elif (stat == "ERROR"):
+                    self.progess_output_text.tag_config("err_text", foreground="red")
+                    self.progess_output_text.insert(tk.END, message + "\n", "err_text")
+                self.progess_output_text.see(tk.END)
+                self.progess_output_text.config(state="disabled")
+                self.log_queue.task_done()
+        except self.log_queue.empty():
+            pass
+        finally:
+            self.root.after(100, self.check_queue)
 
     def clear_all(self):
         self.user_input_text.delete(1.0, tk.END)
@@ -129,6 +157,7 @@ class NotesScraper:
         self.progess_output_text.config(state="normal")
         self.progess_output_text.delete(1.0, tk.END)
         self.append_log("1", "Processing <Table> Data...")
+        self.progess_output_text.config(state="disabled")
 
         thread = threading.Thread(
             target = self.task_on_background_thread,
@@ -138,11 +167,11 @@ class NotesScraper:
     
     def task_on_background_thread(self):
         try:
-            output_arr = logic.process_input_call(self.user_text, self.append_log)
+            logic.process_input_call(self.user_text, self.log_queue)
             self.root.after(
                 0,
                 self.update_ui_success,
-                output_arr
+                "Process Done"
             )
         except Exception as e:
             self.root.after(
@@ -152,7 +181,7 @@ class NotesScraper:
             )
 
     def update_ui_success(self, result):
-        self.append_log("1", "Process Done")
+        self.append_log("1", result)
         self.clear_btn.config(state="normal")
         self.submit_btn.config(state="normal")
 
@@ -169,6 +198,4 @@ def main():
 if (__name__ == "__main__"):
     print("\nSR Scrapper Application")
     print("The application window will open shortly...")
-    print("Extracted records will be displayed in this terminal.")
-    print("All errors and progress will be shown in the Error Output window.\n")
     main()
