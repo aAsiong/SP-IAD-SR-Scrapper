@@ -1,6 +1,8 @@
 from html.parser import HTMLParser
 import pandas as pd
+import re
 import time
+from datetime import datetime as dt
 
 class MyHTMLParser(HTMLParser):
     def __init__(self, log_queue):
@@ -52,7 +54,8 @@ class MyHTMLParser(HTMLParser):
             if (self.row_count > 1):
                 self.log_queue.put(
                     ("INFO",
-                    f"Processing Row {self.row_count}")
+                    f"Processing Row {self.row_count - 1}",
+                    "")
                 )
 
         if (get_tag == "TD" and self.in_row):
@@ -64,7 +67,8 @@ class MyHTMLParser(HTMLParser):
                 
                 self.log_queue.put(
                     ("ERROR",
-                     f"Row {self.row_count} - Invalid <td> structure detected")
+                     f"Row {self.row_count} - Invalid <td> structure detected",
+                    "")
                 )
                 return
             
@@ -78,8 +82,7 @@ class MyHTMLParser(HTMLParser):
             # Get key from hard-coded array of header
             self.current_col = self.columns[self.col_index - 1]
 
-            time.sleep(0.05)
-            print(self.col_index)
+            time.sleep(0.02)
 
         
         # Processing of A will only work for 1st and 2nd column
@@ -91,7 +94,8 @@ class MyHTMLParser(HTMLParser):
 
                 self.log_queue.put(
                     ("ERROR",
-                     f"Row {self.row_count} - Skipped due to missing key values")
+                     f"Row {self.row_count} - Skipped due to missing key values",
+                    "")
                 )
                 return
             else:
@@ -99,7 +103,8 @@ class MyHTMLParser(HTMLParser):
                 self.current_row_data[self.current_col] = extracted_id
                 self.log_queue.put(
                     ("SUCCESS",
-                    f"Row {self.row_count}'s {self.current_col} successfully parsed")
+                    f"Row {self.row_count - 1}'s {self.current_col} successfully parsed",
+                    "")
                 )
                 return
 
@@ -112,7 +117,8 @@ class MyHTMLParser(HTMLParser):
                     self.current_row_data[self.current_col] = clean_data
                     self.log_queue.put(
                         ("SUCCESS",
-                        f"Row {self.row_count}'s {self.current_col} successfully parsed")
+                        f"Row {self.row_count - 1}'s {self.current_col} successfully parsed",
+                        "")
                     )
                 else:
                     # 3rd to 6th columns can be null
@@ -120,7 +126,8 @@ class MyHTMLParser(HTMLParser):
                     self.current_row_data[self.current_col] = ""
                     self.log_queue.put(
                         ("INFO",
-                        f"Row {self.row_count}'s {self.current_col} has no value")
+                        f"Row {self.row_count - 1}'s {self.current_col} has no value",
+                        "")
                     )
             else:
                 return
@@ -140,6 +147,12 @@ class MyHTMLParser(HTMLParser):
             if (self.in_row and self.col_index == 6):
                 self.all_extracted_data.append(self.current_row_data)
 
+                self.log_queue.put(
+                    ("ROW_DONE",
+                    f"Row {self.row_count - 1} - DONE PROCESSING",
+                    len(self.all_extracted_data))
+                )
+                
                 # Properly close in_row
                 self.in_row = False
             else:
@@ -149,24 +162,46 @@ class MyHTMLParser(HTMLParser):
             self.in_cell = False
 
 def pandas_dt_frame(data):
-    df = pd.DataFrame(data)
-    df.to_excel('output.xlsx', index=False)
+    #df.to_excel('output.xlsx', index=False)
+    return pd.DataFrame(data)
             
 def process_input_call(data, log_queue):
+    # Check <table> count. Make sure only one
+    table_count = len(re.findall(r"<table\b", data, re.IGNORECASE))
+    if (table_count != 1):
+        log_queue.put(
+            ("ERROR",
+            f"Invalid Input Structure",
+            "")
+        )
+        return
+    
+    # Compute total rows inside user input
+    total_rows = len(re.findall(r"<tr\b", data, re.IGNORECASE)) - 1
+    log_queue.put(
+        ("SET_MAX",
+         f"Detected records: {total_rows}",
+         total_rows)
+    )
+
     parser = MyHTMLParser(log_queue)
     parser.feed(data)
     log_queue.put(
        ("INFO",
-        "Starting Excel Conversion")
+        "Starting Excel Conversion",
+        "")
     )
     try:
-        pandas_dt_frame(parser.all_extracted_data)
+        df = pandas_dt_frame(parser.all_extracted_data)
+        pandas_to_excel(df)
         log_queue.put(
-            ("SUCCESS",
-            "Excel Exported in root folder")
+            ("FULL_DONE",
+            "Excel Exported in root folder",
+            "")
         )
     except Exception as e:
         log_queue.put(
             ("ERROR",
-            f"Encountered {str(e)}")
+            f"Encountered {str(e)}",
+            "")
         )

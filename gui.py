@@ -95,8 +95,8 @@ class NotesScraper:
         progress_bar_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(0, 10))
         progress_bar_frame.columnconfigure(0, weight=1)
 
-        progress_bar = ttk.Progressbar(progress_bar_frame, mode="determinate", length=400)
-        progress_bar.grid(row=0, column=0, sticky="ew")
+        self.progress_bar = ttk.Progressbar(progress_bar_frame, mode="determinate", length=400)
+        self.progress_bar.grid(row=0, column=0, sticky="ew")
 
         progress_label = ttk.Label(progress_bar_frame, text="Ready")
         progress_label.grid(row=1, column=0, columnspan=2, sticky="w", pady=(5, 0))
@@ -124,14 +124,36 @@ class NotesScraper:
     def check_queue(self):
         try:
             while not self.log_queue.empty():
-                stat, msg = self.log_queue.get()
+                stat, msg, value = self.log_queue.get()
                 self.progess_output_text.config(state="normal")
-                if (stat == "INFO"):
+                if (stat == "SET_MAX"):
+                    self.progess_output_text.tag_config(
+                        "scs_sys", 
+                        foreground="yellow",
+                        background="#333333")
+                    self.progess_output_text.insert(tk.END, msg + "\n", "scs_sys")
+                    self.progress_bar["maximum"] = value
+                    self.progress_bar["value"] = 0
+                elif (stat == "INFO"):
                     self.progess_output_text.tag_config("info_text", foreground="gray")
                     self.progess_output_text.insert(tk.END, msg + "\n", "info_text")
                 elif (stat == "SUCCESS"):
                     self.progess_output_text.tag_config("scs_text", foreground="green")
                     self.progess_output_text.insert(tk.END, msg + "\n", "scs_text")
+                elif (stat == "ROW_DONE"):
+                    self.progess_output_text.tag_config(
+                        "scs_append", 
+                        foreground="#00FF00",
+                        background="#333333")
+                    self.progess_output_text.insert(tk.END, msg + "\n", "scs_append")
+                    self.progress_bar["value"] = value
+                elif (stat == "FULL_DONE"):
+                    self.progess_output_text.tag_config(
+                        "scs_sys", 
+                        foreground="yellow",
+                        background="#333333")
+                    self.progess_output_text.insert(tk.END, msg + "\n", "scs_sys")
+                    self.progress_bar["value"] = self.progress_bar["maximum"]
                 elif (stat == "ERROR"):
                     self.progess_output_text.tag_config("err_text", foreground="red")
                     self.progess_output_text.insert(tk.END, msg + "\n", "err_text")
