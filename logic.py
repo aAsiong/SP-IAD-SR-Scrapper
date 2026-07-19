@@ -162,8 +162,65 @@ class MyHTMLParser(HTMLParser):
             self.in_cell = False
 
 def pandas_dt_frame(data):
-    #df.to_excel('output.xlsx', index=False)
     return pd.DataFrame(data)
+
+def pandas_to_excel(df, total_rows):
+    # Construct Filename
+    get_dt = dt.now() 
+    filename = str(get_dt.strftime("%Y%m%d%H%M%S")) + "-sr-report.xlsx"
+
+    # Create proper header for replacement
+    actual_col_headers = {
+        "notes_id" : "NOTES ID",
+        "web_id" : "WEB ID",
+        "date_requested" : "DATE REQUESTED",
+        "requestor" : "REQUESTOR",
+        "form" : "FORM",
+        "description" : "DESCRIPTION"
+    }
+
+    with pd.ExcelWriter(filename, engine="xlsxwriter") as writer:
+        df.to_excel(
+            writer,
+            sheet_name="Report",
+            startrow=0,
+            index=False
+        )
+
+        workbook = writer.book
+        worksheet = writer.sheets["Report"]
+
+        header = workbook.add_format({
+            "bold" : True,
+            "font_color" : "white",
+            "bg_color" : "#0F3D5E",
+            "border" : 2,
+            "align" : "center",
+            "valign" : "vcenter"
+        })
+        
+        body = workbook.add_format({
+            "border" : 2,
+            "text_wrap" : True,
+            "valign" : "top"
+        })
+
+        for col, value in enumerate(df.columns):
+            worksheet.write(0, col, actual_col_headers.get(value, value), header)
+
+        for r in range(len(df)):
+            for c in range(len(df.columns)):
+                worksheet.write(r + 1, c, df.iloc[r, c], body) 
+                
+        worksheet.set_row(1, total_rows + 2)
+        worksheet.set_default_row(total_rows + 2)
+    
+        worksheet.set_column("A:A", 75)
+        worksheet.set_column("B:B", 35)
+        worksheet.set_column("C:C", 18)
+        worksheet.set_column("D:D", 18)
+        worksheet.set_column("E:E", 35)
+        worksheet.set_column("F:F", 50)
             
 def process_input_call(data, log_queue):
     # Check <table> count. Make sure only one
@@ -193,7 +250,7 @@ def process_input_call(data, log_queue):
     )
     try:
         df = pandas_dt_frame(parser.all_extracted_data)
-        pandas_to_excel(df)
+        pandas_to_excel(df, total_rows)
         log_queue.put(
             ("FULL_DONE",
             "Excel Exported in root folder",

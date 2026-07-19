@@ -170,6 +170,7 @@ class NotesScraper:
         self.progess_output_text.config(state="normal")
         self.progess_output_text.delete(1.0, tk.END)
         self.progess_output_text.config(state="disabled")
+        self.progress_bar["value"] = 0
 
     def process_submit(self):
         self.user_text = self.user_input_text.get("1.0", "end-1c")
