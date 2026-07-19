@@ -8,16 +8,25 @@ class MyHTMLParser(HTMLParser):
         self.in_table = False
         self.in_row = False
         self.in_cell = False
-        self.row_count = 0
-        self.col_index = 0
-        self.columns = ["web_id", "date_requested", "requestor", "form", "description"]
-        self.current_col = ""
-        self.current_row_data = {}
-        self.all_extracted_data = []
         self.log_queue = log_queue
 
-    def extract_notes_id_from_url(self, url):
-        return url.split('/')[5]
+        # Row variables
+        self.row_count = 0
+        self.current_row_data = {}
+        self.all_extracted_data = []
+
+        # Column variables
+        self.col_index = 0
+        self.current_col = ""
+        self.columns = ["notes_id", "web_id", "date_requested", "requestor", "form", "description"]
+
+    def extract_notes_id_from_url(self, url, stt):
+        if (stt == 1):
+            # For 1st column
+            return url.split('/')[4] + '/' + url.split('/')[5]
+        else:
+            # For 2nd column
+            return url.split('/')[6]
     
     def handle_starttag(self, tag, attrs):
         attr_dict = dict(attrs)
@@ -27,64 +36,79 @@ class MyHTMLParser(HTMLParser):
         if (get_tag == "TABLE"):
             self.in_table = True
 
-        elif (get_tag == "TR" and self.in_table == True):
-            self.in_row = True
+        if (self.get_tag == "TR" and self.in_table == True):
             self.row_count += 1
-            
-            self.current_row_data = {}
-            self.col_index = 0
 
-            if (self.row_count > 1):
-                self.log_queue.put(
-                    ("INFO",
-                    f"Processing Row {self.row_count}")
-                )
-            
-        elif (get_tag == "TD" and self.in_row == True):
-            if (self.row_count <= 1):
+            # If self.row_count == 1 then its the Header, skip it
+            if (self.row_count == 1):
                 return
+            else: 
+                self.in_row = True
             
-            self.in_cell = True
-            if (self.col_index == 0):
+                self.col_index = 0
+                self.current_col = ""
+                self.current_row_data = {}
+
+                if (self.row_count > 1):
+                    self.log_queue.put(
+                        ("INFO",
+                        f"Processing Row {self.row_count}")
+                    )
+
+        if (self.get_tag == "TD" and self.in_row == True):
+            # self.in_cell will only be True during <td> process
+            # It will be set to False come the handle_endtag()
+            # This validation will only run if there are nested <td>
+            if (self.in_cell == True):
+                self.in_row = False
                 return
-
-            time.sleep(0.2)
-
-            self.current_col = self.columns[self.col_index - 1]
-                
-        elif  (get_tag == "A" and self.in_cell == True and self.col_index == 1):
-            if ("href" in attr_dict):
-                if (attr_dict["href"] is None):
-                    self.log_queue.put(
-                        ("ERROR",
-                        f"No href value was detected")
-                    )
-                    return
-                else:
-                    extracted_id = self.extract_notes_id_from_url(attr_dict["href"])
-                    self.current_row_data[self.current_col ] = extracted_id
-                    self.log_queue.put(
-                        ("SUCCESS",
-                        f"Record ID successfully parsed")
-                    )
             else:
+                self.in_cell = True
+
+                self.col_index += 1
+                # Get key from hard-coded array of header
+                self.current_col = self.columns[self.col_index - 1]
+        
+        # Processing of A will only work for 1st and 2nd column
+        if (get_tag == "A" and self.in_cell == True and self.col_index < 2):
+            if ("href" in attr_dict and attr_dict["href"] is None):
+                # 1st and 2nd column is important in identifying a record into the db
+                # If something is wrong, skip the entire row
+                self.in_row = False
+
                 self.log_queue.put(
                     ("ERROR",
-                    f"href attribute missing for {self.row_count}")
+                     f"Row {self.row_count} - Skipped due to missing key values")
                 )
-        else:
-            return
-
-    def handle_data(self, data):
-        if (self.in_cell == True and self.row_count > 1 and self.col_index > 0):
-            clean_data = data.strip()
-            if (clean_data and clean_data != "Notes" and clean_data != "Web"):
-                self.current_row_data[self.current_col] = clean_data
+                return
+            else:
+                extracted_id = self.extract_notes_id_from_url(attr_dict["href"], self.col_index)
+                self.current_row_data[self.current_col] = extracted_id
                 self.log_queue.put(
                     ("SUCCESS",
-                    f"{self.current_col} successfully parsed")
+                    f"Row {self.row_count} - Record ID successfully parsed")
                 )
-        self.col_index += 1
+
+    def handle_data(self, data):
+        if (self.in_cell == True and self.in_row == True):
+            # Only run this for 3rd to 6th columns
+            if (self.col_index > 2 and self.col_index < 7):
+                clean_data = data.strip()
+                if (clean_data):
+                    self.current_row_data[self.current_col] = clean_data
+                    self.log_queue.put(
+                        ("SUCCESS",
+                        f"Row {self.row_count}'s {self.current_col} successfully parsed")
+                    )
+                else:
+                    self.log_queue.put(
+                        ("INFO",
+                        f"Row {self.row_count}'s {self.current_col} has no value")
+                    )
+            else:
+                return
+        else:
+            return
 
     def handle_endtag(self, tag):
         get_tag = tag.upper()
