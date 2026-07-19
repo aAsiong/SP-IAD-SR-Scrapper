@@ -24,9 +24,9 @@ class MyHTMLParser(HTMLParser):
         if (stt == 1):
             # For 1st column
             return url.split('/')[4] + '/' + url.split('/')[5]
-        else:
+        elif (stt == 2):
             # For 2nd column
-            return url.split('/')[6]
+            return url.split('/')[5]
     
     def handle_starttag(self, tag, attrs):
         attr_dict = dict(attrs)
@@ -36,41 +36,54 @@ class MyHTMLParser(HTMLParser):
         if (get_tag == "TABLE"):
             self.in_table = True
 
-        if (self.get_tag == "TR" and self.in_table == True):
+        if (get_tag == "TR" and self.in_table):
             self.row_count += 1
 
             # If self.row_count == 1 then its the Header, skip it
             if (self.row_count == 1):
                 return
-            else: 
-                self.in_row = True
-            
-                self.col_index = 0
-                self.current_col = ""
-                self.current_row_data = {}
+                    
+            self.in_row = True
+                
+            self.col_index = 0
+            self.current_col = ""
+            self.current_row_data = {}
 
-                if (self.row_count > 1):
-                    self.log_queue.put(
-                        ("INFO",
-                        f"Processing Row {self.row_count}")
-                    )
+            if (self.row_count > 1):
+                self.log_queue.put(
+                    ("INFO",
+                    f"Processing Row {self.row_count}")
+                )
 
-        if (self.get_tag == "TD" and self.in_row == True):
+        if (get_tag == "TD" and self.in_row):
             # self.in_cell will only be True during <td> process
             # It will be set to False come the handle_endtag()
             # This validation will only run if there are nested <td>
             if (self.in_cell == True):
                 self.in_row = False
+                
+                self.log_queue.put(
+                    ("ERROR",
+                     f"Row {self.row_count} - Invalid <td> structure detected")
+                )
                 return
-            else:
-                self.in_cell = True
+            
+            self.col_index += 1
 
-                self.col_index += 1
-                # Get key from hard-coded array of header
-                self.current_col = self.columns[self.col_index - 1]
+            # Check if <tr>'s <td> exceeds 6
+            if (self.col_index > 6):
+                return
+            
+            self.in_cell = True
+            # Get key from hard-coded array of header
+            self.current_col = self.columns[self.col_index - 1]
+
+            time.sleep(0.05)
+            print(self.col_index)
+
         
         # Processing of A will only work for 1st and 2nd column
-        if (get_tag == "A" and self.in_cell == True and self.col_index < 2):
+        if (get_tag == "A" and self.in_cell == True and self.col_index <= 2):
             if ("href" in attr_dict and attr_dict["href"] is None):
                 # 1st and 2nd column is important in identifying a record into the db
                 # If something is wrong, skip the entire row
@@ -86,8 +99,9 @@ class MyHTMLParser(HTMLParser):
                 self.current_row_data[self.current_col] = extracted_id
                 self.log_queue.put(
                     ("SUCCESS",
-                    f"Row {self.row_count} - Record ID successfully parsed")
+                    f"Row {self.row_count}'s {self.current_col} successfully parsed")
                 )
+                return
 
     def handle_data(self, data):
         if (self.in_cell == True and self.in_row == True):
@@ -101,6 +115,9 @@ class MyHTMLParser(HTMLParser):
                         f"Row {self.row_count}'s {self.current_col} successfully parsed")
                     )
                 else:
+                    # 3rd to 6th columns can be null
+                    # But must inform user via log_queue()
+                    self.current_row_data[self.current_col] = ""
                     self.log_queue.put(
                         ("INFO",
                         f"Row {self.row_count}'s {self.current_col} has no value")
@@ -117,11 +134,18 @@ class MyHTMLParser(HTMLParser):
             self.in_table = False
 
         elif (get_tag == "TR" and self.in_table):
-            if (self.in_row and self.row_count > 1):
+            # Since setting self.in_row is used as a breaker or sort
+            # Only run this if self.in_row is still True, meaning there
+            # was no error encountered during <td> processing
+            if (self.in_row and self.col_index == 6):
                 self.all_extracted_data.append(self.current_row_data)
-            self.in_row = False
 
-        elif (get_tag == "TD" and self.in_cell == True):
+                # Properly close in_row
+                self.in_row = False
+            else:
+                return
+
+        elif (get_tag == "TD" and self.in_cell):
             self.in_cell = False
 
 def pandas_dt_frame(data):

@@ -43,8 +43,11 @@ class NotesScraper:
             text="Paste HTML table below, then click Submit to extract SR data.",
             font=("Segoe UI", 9)
         )
-        instructions.grid(row=0, column=0, sticky="w", pady=(30, 5))
+        instructions.grid(row=0, column=0, columnspan=2, sticky="w", pady=(30, 5))
 
+        # Find first a Terms & Condition for an offline py app
+        # For future use
+        """
         header_bttn = ttk.Frame(main)
         header_bttn.grid(row=0, column=1, sticky="se", pady=(0, 15))
 
@@ -53,6 +56,7 @@ class NotesScraper:
 
         header_bttn_dev = ttk.Button(header_bttn, text="About")
         header_bttn_dev.grid(row=0, column=1)
+        """
 
         user_input_frame = ttk.LabelFrame(main, text="User Input", padding=10)
         user_input_frame.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(0, 10))
@@ -130,7 +134,7 @@ class NotesScraper:
                     self.progess_output_text.insert(tk.END, msg + "\n", "scs_text")
                 elif (stat == "ERROR"):
                     self.progess_output_text.tag_config("err_text", foreground="red")
-                    self.progess_output_text.insert(tk.END, message + "\n", "err_text")
+                    self.progess_output_text.insert(tk.END, msg + "\n", "err_text")
                 self.progess_output_text.see(tk.END)
                 self.progess_output_text.config(state="disabled")
                 self.log_queue.task_done()
