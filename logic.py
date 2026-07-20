@@ -164,7 +164,7 @@ class MyHTMLParser(HTMLParser):
 def pandas_dt_frame(data):
     return pd.DataFrame(data)
 
-def pandas_to_excel(df, total_rows):
+def pandas_to_excel(df, check_file_folder):
     # Construct Filename
     get_dt = dt.now() 
     filename = str(get_dt.strftime("%Y%m%d%H%M%S")) + "-sr-report.xlsx"
@@ -179,50 +179,63 @@ def pandas_to_excel(df, total_rows):
         "description" : "DESCRIPTION"
     }
 
-    with pd.ExcelWriter(filename, engine="xlsxwriter") as writer:
-        df.to_excel(
-            writer,
-            sheet_name="Report",
-            startrow=0,
-            index=False
-        )
+    dl_exist, get_path = check_file_folder("")
+    format_path = check_file_folder(filename)
 
-        workbook = writer.book
-        worksheet = writer.sheets["Report"]
+    if (dl_exist):
+        with pd.ExcelWriter(format_path, engine="xlsxwriter") as writer:
+            df.to_excel(
+                writer,
+                sheet_name="Report",
+                startcol=1,
+                startrow=2,
+                header=False,
+                index=False
+            )
 
-        header = workbook.add_format({
-            "bold" : True,
-            "font_color" : "white",
-            "bg_color" : "#0F3D5E",
-            "border" : 2,
-            "align" : "center",
-            "valign" : "vcenter"
-        })
-        
-        body = workbook.add_format({
-            "border" : 2,
-            "text_wrap" : True,
-            "valign" : "top"
-        })
+            workbook = writer.book
+            worksheet = writer.sheets["Report"]
 
-        for col, value in enumerate(df.columns):
-            worksheet.write(0, col, actual_col_headers.get(value, value), header)
-
-        for r in range(len(df)):
-            for c in range(len(df.columns)):
-                worksheet.write(r + 1, c, df.iloc[r, c], body) 
-                
-        worksheet.set_row(1, total_rows + 2)
-        worksheet.set_default_row(total_rows + 2)
-    
-        worksheet.set_column("A:A", 75)
-        worksheet.set_column("B:B", 35)
-        worksheet.set_column("C:C", 18)
-        worksheet.set_column("D:D", 18)
-        worksheet.set_column("E:E", 35)
-        worksheet.set_column("F:F", 50)
+            header = workbook.add_format({
+                "bold" : True,
+                "font_color" : "white",
+                "bg_color" : "#0F3D5E",
+                "border" : 2,
+                "align" : "center",
+                "valign" : "vcenter"
+            })
             
-def process_input_call(data, log_queue):
+            body = workbook.add_format({
+                "border" : 2,
+                "text_wrap" : True,
+                "valign" : "top"
+            })
+
+            try:
+                for col, value in enumerate(df.columns):
+                    worksheet.write(1, col + 1, actual_col_headers.get(value, value), header)
+                
+                # Temporary Disable
+                """
+                for r in range(len(df)):
+                    for c in range(len(df.columns)):
+                        worksheet.write(r + 2, c + 1, df.iloc[r, c], body)
+                """
+            except Exception (e):
+                print(f"{str(e)}")
+
+            worksheet.set_row(0, 0.5)
+            worksheet.set_default_row(60)
+
+            worksheet.set_column("A:A", 0.5)
+            worksheet.set_column("B:B", 80, body)
+            worksheet.set_column("C:C", 35, body)
+            worksheet.set_column("D:D", 18, body)
+            worksheet.set_column("E:E", 18, body)
+            worksheet.set_column("F:F", 35, body)
+            worksheet.set_column("G:G", 60, body)
+            
+def process_input_call(data, log_queue, check_file_folder):
     # Check <table> count. Make sure only one
     table_count = len(re.findall(r"<table\b", data, re.IGNORECASE))
     if (table_count != 1):
@@ -250,7 +263,7 @@ def process_input_call(data, log_queue):
     )
     try:
         df = pandas_dt_frame(parser.all_extracted_data)
-        pandas_to_excel(df, total_rows)
+        pandas_to_excel(df, check_file_folder)
         log_queue.put(
             ("FULL_DONE",
             "Excel Exported in root folder",

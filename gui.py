@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 import threading
 import logic
 import queue
+import os
 
 class NotesScraper:
     def __init__(self, root):
@@ -11,12 +12,15 @@ class NotesScraper:
         self.root.geometry("550x550")
         self.root.resizable(0, 0)
         self.user_text = ""
+        self.full_path = ""
+        self.folder_name = "iad-sr-report"
 
         # Create Queue
         self.log_queue = queue.Queue()
 
         # Create GUI
         self.create_interface()
+
 
     def create_interface(self):
         self.root.columnconfigure(0, weight=1)
@@ -194,7 +198,7 @@ class NotesScraper:
     
     def task_on_background_thread(self):
         try:
-            logic.process_input_call(self.user_text, self.log_queue)
+            logic.process_input_call(self.user_text, self.log_queue, self.check_file_folder)
             self.root.after(
                 0,
                 self.update_ui_success,
