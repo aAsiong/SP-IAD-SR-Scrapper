@@ -180,7 +180,7 @@ def pandas_to_excel(df, check_file_folder):
     }
 
     dl_exist, get_path = check_file_folder("")
-    format_path = check_file_folder(filename)
+    dl_exist, format_path = check_file_folder(filename)
 
     if (dl_exist):
         with pd.ExcelWriter(format_path, engine="xlsxwriter") as writer:
@@ -234,6 +234,7 @@ def pandas_to_excel(df, check_file_folder):
             worksheet.set_column("E:E", 18, body)
             worksheet.set_column("F:F", 35, body)
             worksheet.set_column("G:G", 60, body)
+    return format_path
             
 def process_input_call(data, log_queue, check_file_folder):
     # Check <table> count. Make sure only one
@@ -263,10 +264,10 @@ def process_input_call(data, log_queue, check_file_folder):
     )
     try:
         df = pandas_dt_frame(parser.all_extracted_data)
-        pandas_to_excel(df, check_file_folder)
+        result = pandas_to_excel(df, check_file_folder)
         log_queue.put(
             ("FULL_DONE",
-            "Excel Exported in root folder",
+            f"Excel Exported in {result}",
             "")
         )
     except Exception as e:

@@ -21,6 +21,48 @@ class NotesScraper:
         # Create GUI
         self.create_interface()
 
+        # Check/Create DL Folder
+        self.check_file_folder("")
+
+    def check_file_folder(self, filename):
+        try:
+            if (filename == ""):
+                document_path = os.path.join(
+                    os.path.expanduser('~'),
+                    'Documents'
+                )
+                print(document_path)
+                self.full_path = os.path.join(
+                    document_path,
+                    self.folder_name
+                )
+                print(self.full_path)
+                if os.path.isdir(self.full_path):
+                    return True, self.full_path
+                else:
+                    self.log_queue.put(
+                        ("INFO",
+                        f"Created {self.folder_name} in {document_path}",
+                        "")
+                    )
+                    # Create Download Folder
+                    os.makedirs(self.full_path)
+                    return True, self.full_path
+            else:
+                print(self.full_path)
+                format_path = os.path.join(
+                    self.full_path,
+                    filename
+                )
+                print(format_path)
+                return True, format_path
+        except Exception as e:
+            self.log_queue.put(
+                ("ERROR",
+                f"{str(e)} - Try Again",
+                "")
+            )
+
 
     def create_interface(self):
         self.root.columnconfigure(0, weight=1)
