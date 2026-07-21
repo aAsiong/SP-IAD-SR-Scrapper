@@ -4,6 +4,7 @@ import threading
 import logic
 import queue
 import os
+import sys
 
 class NotesScraper:
     def __init__(self, root):
@@ -98,7 +99,7 @@ class NotesScraper:
         header_bttn_terms = ttk.Button(header_bttn, text="Software Use")
         header_bttn_terms.grid(row=0, column=0, padx=(0, 5))
         """
-        header_bttn_dev = ttk.Button(header_bttn, text="Support", command=self.show_about)
+        header_bttn_dev = ttk.Button(header_bttn, text="Contact", command=self.show_about)
         header_bttn_dev.grid(row=0, column=1)
         
 
@@ -169,7 +170,7 @@ class NotesScraper:
             message="This application was created to extract the vital information\n" \
             "inside the <Table> tag coming from SignBox daily email\n\n" \
             "For any concern or suggestion, please contact:\n" \
-            "the developer: P001289 - Jonas Anthony Adaoag\n" \
+            "P001289 - Jonas Anthony Adaoag\n" \
             "jonas_adaoag@sercomm.com / P001289@sercomm.com\n\n" \
             "License: Freeware\n" \
             "License: LGPL"
@@ -288,6 +289,14 @@ class NotesScraper:
         self.clear_btn.config(state="normal")
         self.submit_btn.config(state="normal")
 
+def get_path(resource_path):
+    # attempt to run with biticon
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, resource_path)
+
 def main():
     root = tk.Tk()
 
@@ -295,6 +304,8 @@ def main():
     import ctypes
     spappid = 'mycompany.myproduct.subproduct.version'
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(spappid)
+
+    root.iconbitmap(get_path("app-logo.ico"))
 
     app = NotesScraper(root)
     root.mainloop()
