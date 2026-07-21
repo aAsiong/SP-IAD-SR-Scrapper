@@ -221,7 +221,7 @@ def pandas_to_excel(df, check_file_folder):
                     for c in range(len(df.columns)):
                         worksheet.write(r + 2, c + 1, df.iloc[r, c], body)
                 """
-            except Exception (e):
+            except Exception as e:
                 print(f"{str(e)}")
 
             worksheet.set_row(0, 0.5)
@@ -254,6 +254,7 @@ def process_input_call(data, log_queue, check_file_folder):
          f"Detected records: {total_rows}",
          total_rows)
     )
+    time.sleep(1)
 
     parser = MyHTMLParser(log_queue)
     parser.feed(data)
@@ -265,11 +266,7 @@ def process_input_call(data, log_queue, check_file_folder):
     try:
         df = pandas_dt_frame(parser.all_extracted_data)
         result = pandas_to_excel(df, check_file_folder)
-        log_queue.put(
-            ("FULL_DONE",
-            f"Excel Exported in {result}",
-            "")
-        )
+        return result
     except Exception as e:
         log_queue.put(
             ("ERROR",

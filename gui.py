@@ -8,12 +8,12 @@ import os
 class NotesScraper:
     def __init__(self, root):
         self.root = root
-        self.root.title("SP-IAD NOTES Scraper by P001289")
+        self.root.title("SignBox Scraper")
         self.root.geometry("550x550")
         self.root.resizable(0, 0)
         self.user_text = ""
         self.full_path = ""
-        self.folder_name = "iad-sr-report"
+        self.folder_name = "outlk-signbox-report"
 
         # Create Queue
         self.log_queue = queue.Queue()
@@ -24,6 +24,8 @@ class NotesScraper:
         # Check/Create DL Folder
         self.check_file_folder("")
 
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+
     def check_file_folder(self, filename):
         try:
             if (filename == ""):
@@ -31,12 +33,10 @@ class NotesScraper:
                     os.path.expanduser('~'),
                     'Documents'
                 )
-                print(document_path)
                 self.full_path = os.path.join(
                     document_path,
                     self.folder_name
                 )
-                print(self.full_path)
                 if os.path.isdir(self.full_path):
                     return True, self.full_path
                 else:
@@ -49,12 +49,10 @@ class NotesScraper:
                     os.makedirs(self.full_path)
                     return True, self.full_path
             else:
-                print(self.full_path)
                 format_path = os.path.join(
                     self.full_path,
                     filename
                 )
-                print(format_path)
                 return True, format_path
         except Exception as e:
             self.log_queue.put(
@@ -79,30 +77,30 @@ class NotesScraper:
 
         header_txt = ttk.Label(
             main,
-            text="SP-IAD NOTES SCRAPER",
+            text="Outlook SignBox SCRAPER",
             font=("Segoe UI", 15, "bold")
         )
-        header_txt.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 15))
+        header_txt.grid(row=0, column=0, sticky="w", pady=(0, 30))
 
         instructions = ttk.Label(
             main,
-            text="Paste HTML table below, then click Submit to extract SR data.",
+            text="Paste HTML <Table> below, then click Submit to extract SignBox data.",
             font=("Segoe UI", 9)
         )
         instructions.grid(row=0, column=0, columnspan=2, sticky="w", pady=(30, 5))
 
         # Find first a Terms & Condition for an offline py app
         # For future use
-        """
+        
         header_bttn = ttk.Frame(main)
         header_bttn.grid(row=0, column=1, sticky="se", pady=(0, 15))
-
+        """
         header_bttn_terms = ttk.Button(header_bttn, text="Software Use")
         header_bttn_terms.grid(row=0, column=0, padx=(0, 5))
-
-        header_bttn_dev = ttk.Button(header_bttn, text="About")
-        header_bttn_dev.grid(row=0, column=1)
         """
+        header_bttn_dev = ttk.Button(header_bttn, text="Support", command=self.show_about)
+        header_bttn_dev.grid(row=0, column=1)
+        
 
         user_input_frame = ttk.LabelFrame(main, text="User Input", padding=10)
         user_input_frame.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(0, 10))
@@ -157,6 +155,25 @@ class NotesScraper:
         self.submit_btn.grid(row=0, column=1)
         
         self.root.after(100, self.check_queue)
+
+    def on_closing(self):
+        if messagebox.askokcancel(
+            title="NOTICE",
+            message="Do you want to exit application?"
+        ):
+            self.root.destroy()
+    
+    def show_about(self):
+        messagebox.showinfo(
+            title="CONTACT",
+            message="This application was created to extract the vital information\n" \
+            "inside the <Table> tag coming from SignBox daily email\n\n" \
+            "For any concern or suggestion, please contact:\n" \
+            "the developer: P001289 - Jonas Anthony Adaoag\n" \
+            "jonas_adaoag@sercomm.com / P001289@sercomm.com\n\n" \
+            "License: Freeware\n" \
+            "License: LGPL"
+        )
 
     def append_log(self, stat, message):
         if (stat == '1'):
@@ -220,8 +237,12 @@ class NotesScraper:
 
     def process_submit(self):
         self.user_text = self.user_input_text.get("1.0", "end-1c")
-        if (len(self.user_text.strip()) == '0'):
-            self.append_log("2", "No User Input Detected!")
+        if (len(self.user_text.strip()) == 0):
+            self.log_queue.put(
+                ("ERROR",
+                f"No User Input Detected!",
+                "")
+            )
             return
         
         self.clear_btn.config(state="disabled")
@@ -240,11 +261,11 @@ class NotesScraper:
     
     def task_on_background_thread(self):
         try:
-            logic.process_input_call(self.user_text, self.log_queue, self.check_file_folder)
+            result = logic.process_input_call(self.user_text, self.log_queue, self.check_file_folder)
             self.root.after(
                 0,
                 self.update_ui_success,
-                "Process Done"
+                result
             )
         except Exception as e:
             self.root.after(
@@ -254,21 +275,31 @@ class NotesScraper:
             )
 
     def update_ui_success(self, result):
-        self.append_log("1", result)
+        self.log_queue.put(
+            ("FULL_DONE",
+            f"Excel Exported in {result}",
+            "")
+        )
         self.clear_btn.config(state="normal")
         self.submit_btn.config(state="normal")
 
     def update_ui_error(self, error_msg):
-        self.append_log("2", f"Error: {error_msg}")
+        print(f"Error: {error_msg}")
         self.clear_btn.config(state="normal")
         self.submit_btn.config(state="normal")
 
 def main():
     root = tk.Tk()
+
+    # ctypes for handling taskbar icon change
+    import ctypes
+    spappid = 'mycompany.myproduct.subproduct.version'
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(spappid)
+
     app = NotesScraper(root)
     root.mainloop()
 
 if (__name__ == "__main__"):
-    print("\nSR Scrapper Application")
+    print("\nSignBox Scrapper Application")
     print("The application window will open shortly...")
     main()
